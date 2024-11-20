@@ -1,0 +1,264 @@
+#include <iostream>
+#include <vector>
+#include <string>
+#include <algorithm>
+using namespace std;
+
+// *Base Class: Song*
+class Song {
+private:
+    string title;
+    string artist;
+    double duration; // in minutes
+    int rating;      // Rating out of 5
+
+public:
+    // Constructor
+    Song(string t, string a, double d) : title(t), artist(a), duration(d), rating(0) {}
+
+    // Encapsulation: Getters and Setters
+    string getTitle() const { return title; }
+    string getArtist() const { return artist; }
+    double getDuration() const { return duration; }
+    int getRating() const { return rating; }
+
+    void setRating(int r) {
+        if (r >= 0 && r <= 5) {
+            rating = r;
+        } else {
+            cout << "Invalid rating! Please provide a value between 0 and 5.\n";
+        }
+    }
+
+    // Display song details
+    virtual void displayDetails() const {
+        cout << "Title: " << title << ", Artist: " << artist
+             << ", Duration: " << duration << " mins, Rating: " << rating << "/5\n";
+    }
+};
+
+// *Derived Class: PremiumSong* (Inheritance)
+class PremiumSong : public Song {
+private:
+    string feature; // Additional feature for premium songs
+
+public:
+    PremiumSong(string t, string a, double d, string f)
+        : Song(t, a, d), feature(f) {}
+
+    // Polymorphism: Overriding displayDetails
+    void displayDetails() const override {
+        Song::displayDetails();
+        cout << "Additional Feature: " << feature << "\n";
+    }
+};
+
+// *Subscription Class* (New class to represent subscription)
+class Subscription {
+private:
+    bool isSubscribed;
+
+public:
+    Subscription() : isSubscribed(false) {}
+
+    // Method to subscribe
+    void subscribe() {
+        isSubscribed = true;
+        cout << "Subscription activated! Enjoy premium features.\n";
+    }
+
+    // Method to cancel subscription
+    void cancelSubscription() {
+        isSubscribed = false;
+        cout << "Subscription cancelled. You can only access regular songs.\n";
+    }
+
+    bool isUserSubscribed() const {
+        return isSubscribed;
+    }
+};
+
+// *Playlist Class*
+class Playlist {
+private:
+    string name;
+    vector<Song *> songs; // Vector of Song pointers to support polymorphism
+
+public:
+    Playlist(string n) : name(n) {}
+
+    void addSong(Song *song) {
+        songs.push_back(song);
+        cout << "Song \"" << song->getTitle() << "\" added to playlist \"" << name << "\".\n";
+    }
+
+    void removeSong(const string &title) {
+        auto it = remove_if(songs.begin(), songs.end(), [&title](Song *s) {
+            return s->getTitle() == title;
+        });
+        if (it != songs.end()) {
+            cout << "Song \"" << (*it)->getTitle() << "\" removed from playlist \"" << name << "\".\n";
+            songs.erase(it, songs.end());
+        } else {
+            cout << "Song \"" << title << "\" not found in playlist.\n";
+        }
+    }
+
+    Song *searchSong(const string &query) const {
+        for (auto *song : songs) {
+            if (song->getTitle() == query || song->getArtist() == query) {
+                return song;
+            }
+        }
+        return nullptr;
+    }
+
+    void displaySongs() const {
+        cout << "\nPlaylist: " << name << "\n";
+        if (songs.empty()) {
+            cout << "No songs in the playlist.\n";
+            return;
+        }
+        for (auto *song : songs) {
+            song->displayDetails();
+        }
+    }
+
+    const vector<Song *> &getSongs() const { return songs; }
+    string getName() const { return name; }
+};
+
+// *MusicPlayer Class*
+class MusicPlayer {
+private:
+    Playlist *currentPlaylist;
+    Subscription subscription; // Add subscription as part of the music player
+
+public:
+    MusicPlayer() : currentPlaylist(nullptr) {}
+
+    void setPlaylist(Playlist *playlist) {
+        currentPlaylist = playlist;
+        cout << "Playlist \"" << playlist->getName() << "\" is now active.\n";
+    }
+
+    void playAll() const {
+        if (!currentPlaylist) {
+            cout << "No playlist set.\n";
+            return;
+        }
+        cout << "Playing all songs in playlist \"" << currentPlaylist->getName() << "\":\n";
+        for (auto *song : currentPlaylist->getSongs()) {
+            cout << "Playing: " << song->getTitle() << " by " << song->getArtist() << "\n";
+        }
+    }
+
+    void addSongToPlaylist(Playlist &playlist) {
+        string title, artist, type;
+        double duration;
+        cout << "Enter song title: ";
+        cin.ignore();
+        getline(cin, title);
+        cout << "Enter artist name: ";
+        getline(cin, artist);
+        cout << "Enter duration (in minutes): ";
+        cin >> duration;
+        cout << "Enter song type ('regular' or 'premium'): ";
+        cin >> type;
+
+        if (type == "premium" && subscription.isUserSubscribed()) {
+            string feature;
+            cout << "Enter additional feature: ";
+            cin.ignore();
+            getline(cin, feature);
+            playlist.addSong(new PremiumSong(title, artist, duration, feature));
+        } else if (type == "regular") {
+            playlist.addSong(new Song(title, artist, duration));
+        } else {
+            cout << "You need a subscription to add premium songs.\n";
+        }
+    }
+
+    void searchAndRateSong(Playlist &playlist) {
+        string title;
+        cout << "Enter song title to search and rate: ";
+        cin.ignore();
+        getline(cin, title);
+        Song *song = playlist.searchSong(title);
+        if (song) {
+            song->displayDetails();
+            int rating;
+            cout << "Enter rating (0 to 5): ";
+            cin >> rating;
+            song->setRating(rating);
+        } else {
+            cout << "Song \"" << title << "\" not found in playlist.\n";
+        }
+    }
+
+    void subscribe() {
+        subscription.subscribe();
+    }
+
+    void cancelSubscription() {
+        subscription.cancelSubscription();
+    }
+};
+
+// *Main Function*
+int main() {
+    MusicPlayer player;
+    Playlist myPlaylist("My Playlist");
+    int choice;
+
+    do {
+        cout << "\n*** Music Player Menu ***\n";
+        cout << "1. Add Song to Playlist\n";
+        cout << "2. Display All Songs in Playlist\n";
+        cout << "3. Play All Songs\n";
+        cout << "4. Search and Rate a Song\n";
+        cout << "5. Remove a Song from Playlist\n";
+        cout << "6. Subscribe\n";
+        cout << "7. Cancel Subscription\n";
+        cout << "8. Exit\n";
+        cout << "Enter your choice: ";
+        cin >> choice;
+
+        switch (choice) {
+            case 1:
+                player.addSongToPlaylist(myPlaylist);
+                break;
+            case 2:
+                myPlaylist.displaySongs();
+                break;
+            case 3:
+                player.setPlaylist(&myPlaylist);
+                player.playAll();
+                break;
+            case 4:
+                player.searchAndRateSong(myPlaylist);
+                break;
+            case 5: {
+                string title;
+                cout << "Enter the title of the song to remove: ";
+                cin.ignore();
+                getline(cin, title);
+                myPlaylist.removeSong(title);
+                break;
+            }
+            case 6:
+                player.subscribe();
+                break;
+            case 7:
+                player.cancelSubscription();
+                break;
+            case 8:
+                cout << "Exiting Music Player. Goodbye!\n";
+                break;
+            default:
+                cout << "Invalid choice! Please try again.\n";
+        }
+    } while (choice != 8);
+
+    return 0;
+}
